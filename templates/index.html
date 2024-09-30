@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Recognition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f9;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            text-align: center;
+            background-color: #fff;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            max-width: 700px;
+            width: 100%;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        #video {
+            width: 100%;
+            max-width: 600px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin: 0 10px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            color: #555;
+            margin-top: 20px;
+        }
+
+        #result {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        #video {
+            width: 100%;
+            max-width: 600px;
+        }
+    </style>
+</head>
+<body>
+    <center>
+    <h1>Face Recognition System</h1>
+    <video id="video" autoplay></video><br><br>
+    <button id="capture">Capture Image</button>
+    <button id="predict">Process Image</button>
+    <h2 id="result"></h2>
+</center>
+
+    <script>
+        const video = document.getElementById('video');
+        const resultElement = document.getElementById('result');
+        const captureButton = document.getElementById('capture');
+        const predictButton = document.getElementById('predict');
+        let capturedImage = null;
+
+        // Access the camera
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then((stream) => {
+                video.srcObject = stream;
+            })
+            .catch((error) => {
+                console.error("Error accessing camera: ", error);
+            });
+
+        // Capture image every 5 seconds
+        setInterval(() => {
+            captureImage();
+        }, 5000);
+
+        // Capture the current frame from the video
+        function captureImage() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 224; // Same size as model input
+            canvas.height = 224;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            capturedImage = canvas.toDataURL('image/jpeg');
+            console.log("Image captured!");
+        }
+
+        // Manually capture the image when the button is clicked
+        captureButton.addEventListener('click', captureImage);
+
+        // Process captured image on button click
+        predictButton.addEventListener('click', () => {
+            if (capturedImage) {
+                const formData = new FormData();
+                const blob = dataURItoBlob(capturedImage);
+                formData.append('image', blob, 'captured_image.jpg');
+
+                fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    resultElement.innerHTML = `Predicted Class: ${data.predicted_class}, Confidence: ${data.confidence.toFixed(2)}`;
+
+                    // Redirect users based on predicted class
+                    if (data.predicted_class === 'user1') {
+                        window.location.href = "http://192.168.1.110/asok/qr_scanner.php?user_id=1&stage_no=1";
+                    } else if (data.predicted_class === 'user2') {
+                        window.location.href = "https://www.google.com";
+                    } else if (data.predicted_class === 'user3') {
+                        window.location.href = "http://192.168.1.110/asok/qr_scanner.php?user_id=3&stage_no=3";
+                    }
+                })
+                .catch((error) => {
+                    console.error("Error processing image: ", error);
+                });
+            } else {
+                alert("No image captured!");
+            }
+        });
+
+        // Convert data URI to Blob
+        function dataURItoBlob(dataURI) {
+            const byteString = atob(dataURI.split(',')[1]);
+            const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            for (let i = 0; i < byteString.length; i++) {
+                ia[i] = byteString.charCodeAt(i);
+            }
+            return new Blob([ab], { type: mimeString });
+        }
+    </script>
+</body>
+</html>
